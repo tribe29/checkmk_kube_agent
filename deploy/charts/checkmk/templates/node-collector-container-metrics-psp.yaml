@@ -14,7 +14,7 @@ metadata:
     apparmor.security.beta.kubernetes.io/defaultProfileName: >-
       runtime/default
 spec:
-  allowedCapabilities: [CAP_SYS_PTRACE]
+  allowedCapabilities: [SYS_PTRACE]
   allowedHostPaths:
     - pathPrefix: /var/run
       readOnly: false

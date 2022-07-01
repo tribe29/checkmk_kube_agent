@@ -188,7 +188,7 @@ nodeCollector:
       capabilities:
         drop:
           - ALL
-        add: ["CAP_SYS_PTRACE"]
+        add: ["SYS_PTRACE"]
       privileged: false
       readOnlyRootFilesystem: true
 
