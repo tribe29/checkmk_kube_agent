@@ -4,6 +4,7 @@
 
 nameOverride: ""
 fullnameOverride: ""
+kubeVersionOverride: ""
 
 tlsCommunication:
   enabled: false

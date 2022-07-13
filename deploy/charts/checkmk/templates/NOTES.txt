@@ -19,17 +19,22 @@ LoadBalancer:
   echo http://$SERVICE_IP:{{ .Values.clusterCollector.service.port }}
 {{- else if contains "ClusterIP" .Values.clusterCollector.service.type }}
 ClusterIP:
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "checkmk.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}");
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "checkmk.name" . }},app.kubernetes.io/instance={{ .Release.Name }},component={{ include "checkmk.fullname" . }}-cluster-collector" -o jsonpath="{.items[0].metadata.name}");
   export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}");
   echo "Use http://127.0.0.1:8080 for access.";
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
 {{- end }}
   # Cluster-internal DNS of `cluster-collector`: {{ include "checkmk.fullname" . }}-cluster-collector.{{ .Release.Namespace }}
 With the token of the service account named `{{ template "checkmk.serviceAccountName.checkmk" . }}` in the namespace `{{ .Release.Namespace }}` you can now issue queries against the `cluster-collector`.
+{{- if semverCompare ">= 1.24-0" (include "checkmk.kubeVersion" .) }}
+Run the following to create a token:
+  export TOKEN=$(kubectl create token -n {{ .Release.Namespace }} {{ template "checkmk.serviceAccountName.checkmk" . }});
+{{- else }}
 Run the following to fetch its token, resp. ca-certificate:
   export TOKEN=$(kubectl get secret $(kubectl get serviceaccount {{ template "checkmk.serviceAccountName.checkmk" . }} -o=jsonpath='{.secrets[*].name}' -n {{ .Release.Namespace }}) -n {{ .Release.Namespace }} -o=jsonpath='{.data.token}' | base64 --decode);
   export CA_CRT="$(kubectl get secret $(kubectl get serviceaccount {{ template "checkmk.serviceAccountName.checkmk" . }} -o=jsonpath='{.secrets[*].name}' -n {{ .Release.Namespace }}) -n {{ .Release.Namespace }} -o=jsonpath='{.data.ca\.crt}' | base64 --decode)";
   # Note: Quote the variable when echo'ing to preserve proper line breaks: `echo "$CA_CRT"`
+{{- end }}
 To test access you can run:
 {{- if .Values.clusterCollector.ingress.enabled }}
 {{- if $.Values.tlsCommunication.enabled }}
@@ -60,9 +65,9 @@ To test access you can run:
 {{- end }}
 {{- else if contains "ClusterIP" .Values.clusterCollector.service.type }}
 {{- if $.Values.tlsCommunication.enabled }}
-  kubectl -n {{ .Release.Namespace }} run -it test-access --rm --image wbitt/network-multitool --restart=Never -- env TOKEN=$TOKEN sh -c 'curl -k -H "Authorization: Bearer $TOKEN" https://{{ include "checkmk.fullname" . }}-cluster-collector.{{ .Release.Namespace }}.svc:8080/metadata | jq'
+  kubectl -n {{ .Release.Namespace }} run -it test-access --rm --image wbitt/network-multitool --restart=Never -- env TOKEN=$TOKEN sh -c 'sleep 2 && curl -k -H "Authorization: Bearer $TOKEN" https://{{ include "checkmk.fullname" . }}-cluster-collector.{{ .Release.Namespace }}.svc:8080/metadata | jq'
 {{- else }}
-  kubectl -n {{ .Release.Namespace }} run -it test-access --rm --image wbitt/network-multitool --restart=Never -- env TOKEN=$TOKEN sh -c 'curl -H "Authorization: Bearer $TOKEN" {{ include "checkmk.fullname" . }}-cluster-collector.{{ .Release.Namespace }}.svc:8080/metadata | jq'
+  kubectl -n {{ .Release.Namespace }} run -it test-access --rm --image wbitt/network-multitool --restart=Never -- env TOKEN=$TOKEN sh -c 'sleep 2 && curl -H "Authorization: Bearer $TOKEN" {{ include "checkmk.fullname" . }}-cluster-collector.{{ .Release.Namespace }}.svc:8080/metadata | jq'
 {{- end }}
 {{- if $.Values.networkPolicy.enabled }}
   NOTE: You have NetworkPolicies enabled, so you need to label the `test-access` pod with `component: {{ include "checkmk.fullname" . }}-node-collector`.

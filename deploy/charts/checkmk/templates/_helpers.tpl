@@ -72,3 +72,10 @@ Create the name of the service accounts
 {{- define "checkmk.serviceAccountName.nodeCollector.machineSectionsCollector" -}}
     {{ print (include "checkmk.fullname" .) "-node-collector-machine-sections" }}
 {{- end -}}
+
+{{/*
+Allow KubeVersion to be overridden
+*/}}
+{{- define "checkmk.kubeVersion" -}}
+    {{- default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
+{{- end -}}
